@@ -36,6 +36,13 @@ struct ByteScanner {
 
         return byte
     }
+
+    mutating func pop(_ n: Int) {
+
+        for _ in 0..<n {
+            pop()
+        }
+    }
 }
 
 extension ByteScanner {
