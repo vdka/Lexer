@@ -25,7 +25,7 @@ extension Scanner {
     /// - Precondition: index != bytes.endIndex. It is assumed before calling pop that you have
     @discardableResult
     mutating func pop() -> Element {
-        assert(pointer != endAddress)
+        assert(pointer < endAddress)
         defer { pointer = pointer.advanced(by: 1) }
         return pointer.pointee
     }
@@ -39,13 +39,41 @@ extension Scanner {
     }
 
     mutating func pop(_ n: Int) {
-
+        assert(pointer.advanced(by: n - 1) < endAddress)
+        pointer = pointer.advanced(by: n)
     }
 }
 
-extension Scanner {
+protocol _Swift3Pls {}
+extension UnicodeScalar: _Swift3Pls {}
+extension Scanner where Element: _Swift3Pls {
+
+    mutating func hasPrefix(_ prefix: String) -> Bool {
+
+        for (index, el) in prefix.unicodeScalars.enumerated() {
+
+            guard peek(aheadBy: index) as? UnicodeScalar == el else { return false }
+        }
+
+        return true
+    }
+
+    mutating func prefix(_ n: Int) -> String {
+
+        var scalars: [UnicodeScalar] = []
+
+        var index = 0
+        while index < n, let next = peek(aheadBy: index) {
+            defer { index += 1 }
+
+            scalars.append(next as! UnicodeScalar)
+        }
+
+        return String(scalars.map(Character.init))
+    }
+
     var isEmpty: Bool {
-        return pointer == endAddress
+        return pointer >= endAddress
     }
 }
 

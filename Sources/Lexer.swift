@@ -1,13 +1,13 @@
 
-let whitespace	= Array<UTF8.CodeUnit>(" \t\n".utf8)
+let whitespace	= Array(" \t\n".unicodeScalars)
 
 struct Lexer<Token> {
 
-    typealias Byte = UTF8.CodeUnit
-
     typealias Output = (token: Token, location: SourceLocation)
 
-    var scanner: ByteScanner
+    var scanner: Scanner<UnicodeScalar>
+    var position: SourceLocation
+
     var buffer: [Output] = []
     var nextInternal: (inout Lexer<Token>) throws -> Output?
 
@@ -15,18 +15,19 @@ struct Lexer<Token> {
 
     init(_ file: String, next: @escaping (inout Lexer<Token>) throws -> Output?) {
 
-        self.scanner = ByteScanner(Array(file.utf8))
+        self.scanner = Scanner(Array(file.unicodeScalars))
+        self.position = SourceLocation(line: 1, column: 1)
         self.buffer  = []
         self.nextInternal = next
 
-        self.lastLocation = scanner.position
+        self.lastLocation = position
     }
 
     mutating func next() throws -> Output? {
         return try self.nextInternal(&self)
     }
 
-    mutating func peek(aheadBy n: Int = 0) throws -> Output? {
+    mutating func lookahead(aheadBy n: Int = 0) throws -> Output? {
         if n < buffer.count { return buffer[n] }
 
         for _ in buffer.count...n {
@@ -37,7 +38,7 @@ struct Lexer<Token> {
     }
 
     @discardableResult
-    mutating func pop() throws -> Output {
+    mutating func consume() throws -> Output {
         if buffer.isEmpty {
             let token = try next()!
             lastLocation = token.location
@@ -64,7 +65,7 @@ struct Lexer<Token> {
     }
 
     @discardableResult
-    mutating func consume(with chars: Set<Byte>) -> String {
+    mutating func consume(with chars: Set<UnicodeScalar>) -> String {
 
         var scalars: [UnicodeScalar] = []
         while let char = scanner.peek(), chars.contains(char) {
@@ -78,7 +79,7 @@ struct Lexer<Token> {
     }
 
     @discardableResult
-    mutating func consume(upTo predicate: (Byte) -> Bool) -> String {
+    mutating func consume(upTo predicate: (UnicodeScalar) -> Bool) -> String {
 
         var scalars: [UnicodeScalar] = []
         while let char = scanner.peek(), predicate(char) {
@@ -91,7 +92,7 @@ struct Lexer<Token> {
     }
 
     @discardableResult
-    mutating func consume(upTo target: Byte) -> String {
+    mutating func consume(upTo target: UnicodeScalar) -> String {
 
         var scalars: [UnicodeScalar] = []
         while let char = scanner.peek(), char != target {
@@ -148,10 +149,29 @@ extension Lexer {
         scanner.pop()
     }
 
-    private mutating func skipLineComment() {
+    mutating func skipLineComment() {
         assert(scanner.hasPrefix("//"))
 
         while let char = scanner.peek(), char != "\n" { scanner.pop() }
+    }
+
+
+    func lookahead(aheadBy n: Int = 0) -> UnicodeScalar? {
+        return scanner.peek(aheadBy: n)
+    }
+
+    @discardableResult
+    mutating func pop() -> UnicodeScalar {
+        let c = scanner.pop()
+
+        if c == "\n" {
+            position.line   += 1
+            position.column  = 1
+        } else {
+            position.column += 1
+        }
+
+        return c
     }
 }
 
