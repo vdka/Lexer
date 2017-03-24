@@ -15,6 +15,10 @@ struct SourceLocation {
 
     static let zero = SourceLocation(line: 0, column: 0)
     static let unknown = SourceLocation(line: 0, column: 0)
+
+    static func file(name: String) -> SourceLocation {
+        return SourceLocation(line: 1, column: 1, file: name)
+    }
 }
 
 extension SourceLocation: CustomStringConvertible {
